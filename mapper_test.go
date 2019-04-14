@@ -12,7 +12,7 @@ func TestBuildConfig(t *testing.T) {
 		"Password": 1,
 	}
 
-	conf := loadingMapper("./examples/mapper")
+	conf,_ := loadingMapper("./examples/mapper")
 	stmt := conf.getMappedStmt("userMapper.queryStructsByCond3")
 	s := stmt.sqlSource.getBoundSql(params)
 	t.Logf("%s", s.sqlStr)
@@ -23,7 +23,7 @@ func BenchmarkName(b *testing.B) {
 
 	params := make(map[string]interface{})
 	params["Name"] = "Sean"
-	conf := loadingMapper("./examples/mapper")
+	conf,_ := loadingMapper("./examples/mapper")
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {

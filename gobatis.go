@@ -35,6 +35,13 @@ type Executor interface {
 	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
+var(
+	ErrorDBNil = errors.New("sql.db can not be nil")
+	ErrorDbConn = errors.New("db can not conn")
+	ErrorEmptyMapper = errors.New("mapper xml is nil or empty")
+	ErrStruct = errors.New("struct query result must be ptr")
+)
+
 type DbType string
 
 const (
@@ -42,7 +49,7 @@ const (
 	dbTypePostgres DbType = "postgres"
 )
 
-var showSql = false
+var showSql = true
 
 type Config struct {
 	Db          *sql.DB
@@ -51,9 +58,18 @@ type Config struct {
 
 func NewGoBatis(ctx context.Context, conf *Config) (*Gobatis, error) {
 	if nil == conf.Db {
-		panic("")
+		return nil,ErrorDBNil
 	}
-	mapper := loadingMapper(conf.MapperPaths...)
+
+	err := conf.Db.Ping()
+	if nil != err {
+		return nil,ErrorDbConn
+	}
+
+	mapper,err := loadingMapper(conf.MapperPaths...)
+	if nil != err {
+		return nil, err
+	}
 
 	gb := &Gobatis{
 		db:      conf.Db,

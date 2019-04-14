@@ -2,56 +2,6 @@
 
 目前代码都是基于mysql编写测试的,其他数据库暂时还未做兼容处理
 
-## db数据源配置
-- 支持多数据源配置
-- db子级配置为一个map，map的key即为数据源名称标识  
-- map的value为数据源具体配置，具体配置项如下表
-
-| 配置 | 是否必填配置 | 默认值 | 说明 |
-|:---|:----:|:----:|----|
-| driverName | 是 | | 数据源驱动名，必填配置项
-| dataSourceName | 是 | | 数据源名称，必填配置项，例如: root:123456@tcp(127.0.0.1:3306)/test?charset=utf8
-| maxLifeTime | 否 | 120(单位: s)| 连接最大存活时间，默认值为: 120 单位为: s
-| maxOpenConns | 否 | 10 | 最大打开连接数，默认值为: 10
-| maxIdleConns | 否 | 5 | 最大挂起连接数，默认值为: 5
-
-### 示例
-* db配置示例(配置较之前的有所调整)  
-以下为多数据源配置示例: db.yml
-```yaml
-# 数据库配置
-db:
-  # 数据源名称1
-  - datasource: ds1
-    # 驱动名
-    driverName: mysql
-    # 数据源
-    dataSourceName: root:123456@tcp(127.0.0.1:3306)/test?charset=utf8
-    # 连接最大存活时间（单位: s）
-    maxLifeTime: 120
-    # 最大open连接数
-    maxOpenConns: 10
-    # 最大挂起连接数
-    maxIdleConns: 5
-  # 数据源名称2
-  - datasource: ds2
-    # 驱动名
-    driverName: mysql
-    # 数据源
-    dataSourceName: root:123456@tcp(127.0.0.1:3306)/test?charset=utf8
-    # 连接最大存活时间（单位: s）
-    maxLifeTime: 120
-    # 最大open连接数
-    maxOpenConns: 10
-    # 最大挂起连接数
-    maxIdleConns: 5
-# 是否显示SQL语句
-showSql: true
-# 数据表映射文件路径配置
-mappers:
-  # 映射文件路径， 可以为绝对路径，如: /usr/local/mapper/userMapper.xml
-  - mapper/userMapper.xml
-```
 
 * mapper配置  
 1. mapper可以配置namespace属性  
@@ -146,62 +96,33 @@ type User struct {
 }
 
 func main() {
-	// 初始化db，参数为db.yml路径，如：db.yml
-	gobatis.ConfInit("db.yml")
-
-	// 获取数据源，参数为数据源名称，如：datasource1
-	gb := gobatis.NewGoBatis("ds1")
-
-	//传入id查询Map
-	mapRes := make(map[string]interface{})
-	// stmt标识为：namespace + '.' + id, 如：userMapper.findMapById
-	// 查询参数可以是map，也可以是数组，也可以是实体结构
-	err := gb.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(mapRes)
-	fmt.Println("userMapper.findMapById-->", mapRes, err)
-
-	// 根据传入实体查询对象
-	param := User{Id: gobatis.NullInt64{Int64: 1, Valid: true}}
-	var structRes *User
-	err = gb.Select("userMapper.findStructByStruct", param)(&structRes)
-	fmt.Println("userMapper.findStructByStruct-->", structRes, err)
-
-	// 查询实体列表
-	structsRes := make([]*User, 0)
-	err = gb.Select("userMapper.queryStructs", map[string]interface{}{})(&structsRes)
-	fmt.Println("userMapper.queryStructs-->", structsRes, err)
-
-	param = User{
-		Id:   gobatis.NullInt64{Int64: 1, Valid: true},
-		Name: gobatis.NullString{String: "wenj1993", Valid: true},
-	}
-
-	// set tag
-	affected, err := gb.Update("userMapper.updateByCond", param)
-	fmt.Println("updateByCond:", affected, err)
-
-	param = User{Name: gobatis.NullString{String: "wenj1993", Valid: true}}
-	// where tag
-	res := make([]*User, 0)
-	err = gb.Select("userMapper.queryStructsByCond", param)(&res)
-	fmt.Println("queryStructsByCond", res, err)
-
-	// trim tag
-	res = make([]*User, 0)
-	err = gb.Select("userMapper.queryStructsByCond2", param)(&res)
-	fmt.Println("queryStructsByCond2", res, err)
-	
-	// ${id}
-	res = make([]*User, 0)
-	err = gb.Select("userMapper.queryStructsByOrder", map[string]interface{}{
-		"id":"id",
-	})(&res)
-	fmt.Println("queryStructsByCond", res, err)
-
-	// 开启事务示例
-	tx, _ := gb.Begin()
-	defer tx.Rollback()
-	tx.Select("userMapper.findMapById", map[string]interface{}{"id": 1,})(mapRes)
-	fmt.Println("tx userMapper.findMapById-->", mapRes, err)
-	tx.Commit()
+	db, err := sql.Open("mysql",
+    		"root:toor@tcp(127.0.0.1:3306)/gobatis")
+    	if nil != err {
+    		panic(err)
+    	}
+    
+    	err = db.Ping()
+    	if nil != err {
+    		panic(err)
+    	}
+    
+    	config := &gobatis.Config{
+    		Db:          db,
+    		MapperPaths: []string{"./examples/mapper"},
+    	}
+    
+    	batis, err := gobatis.NewGoBatis(context.Background(), config)
+    	if nil != err {
+    		panic(err)
+    	}
+    
+    	runner, err := batis.Begin()
+    
+    	u := User{}
+    
+    	err = runner.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(&u)
+    
+    	fmt.Printf("%v, error%v",u,err)
 }
 ```

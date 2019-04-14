@@ -12,7 +12,7 @@ func lookupMapper(paths ...string) []string {
 
 	for _, p := range paths {
 		_ = filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
-			if strings.HasSuffix(info.Name(), ".xml") {
+			if nil != info && strings.HasSuffix(info.Name(), ".xml") {
 				p, err = filepath.Abs(path)
 				if nil != err {
 					return err
@@ -26,8 +26,12 @@ func lookupMapper(paths ...string) []string {
 	return fs
 }
 
-func loadingMapper(paths ...string) *mapper {
+func loadingMapper(paths ...string) (*mapper,error) {
 	fs := lookupMapper(paths...)
+
+	if len(fs) == 0 {
+		return nil,ErrorEmptyMapper
+	}
 
 	mp := newMapper()
 
@@ -81,5 +85,5 @@ func loadingMapper(paths ...string) *mapper {
 		_ = r.Close()
 	}
 
-	return mp
+	return mp,nil
 }

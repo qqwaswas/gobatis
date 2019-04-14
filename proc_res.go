@@ -23,28 +23,16 @@ var resSetProcMap = map[ResultType]resultTypeProc{
 
 func resStructProc(rows *sql.Rows, res interface{}) error {
 	resVal := reflect.ValueOf(res)
-	if resVal.Kind() != reflect.Ptr {
-		return errors.New("struct query result must be ptr")
+	for resVal.Kind() == reflect.Ptr {
+		if resVal.IsNil() {
+			return ErrStruct
+		}
+		resVal = resVal.Elem()
 	}
-
-	if resVal.Elem().Kind() != reflect.Ptr ||
-		!resVal.Elem().IsValid() ||
-		resVal.Elem().Elem().Kind() != reflect.Invalid {
-		tips := `
-var res *XXX
-queryParams := make(map[string]interface{})
-queryParams["id"] = id
-gb.Select("selectXXXById", queryParams)(&res)
-
-Tips: "(&res)" --> don't forget "&"
-`
-		return errors.New("Struct query result must be a struct ptr, " +
-			"and params res is the address of ptr, e.g. " + tips)
+	if resVal.Kind() != reflect.Struct {
+		return ErrStruct
 	}
-
-	finalVal := reflect.New(resVal.Elem().Type().Elem())
-	finalStructPtr := finalVal.Interface()
-	arr, err := rowsToStructs(rows, reflect.TypeOf(finalStructPtr).Elem())
+	arr, err := rowsToStructs(rows, resVal)
 	if nil != err {
 		return err
 	}
@@ -69,48 +57,43 @@ Tips: "(&res)" --> don't forget "&"
 	}
 
 	if len(arr) == 1 {
-		resVal.Elem().Set(reflect.ValueOf(arr[0]))
+		resVal.Set(reflect.ValueOf(arr[0]).Elem())
 	}
 
 	return nil
 }
 
 func resStructsProc(rows *sql.Rows, res interface{}) error {
-	sliceVal := reflect.ValueOf(res)
-	if sliceVal.Kind() != reflect.Ptr {
-		return errors.New("structs query result must be ptr")
+	resVal := reflect.ValueOf(res)
+	for resVal.Kind() == reflect.Ptr {
+		if resVal.IsNil() {
+			return ErrStruct
+		}
+		resVal = resVal.Elem()
 	}
 
-	slicePtr := reflect.Indirect(sliceVal)
+	slicePtr := reflect.Indirect(resVal)
 	if slicePtr.Kind() != reflect.Slice && slicePtr.Kind() != reflect.Array {
 		return errors.New("structs query result must be slice")
 	}
 
-	//get elem type
-	elem := slicePtr.Type().Elem()
-	resultType := elem
-	isPtr := elem.Kind() == reflect.Ptr
-	if isPtr {
-		resultType = elem.Elem()
+	ele := slicePtr.Type().Elem()
+	for ele.Kind() == reflect.Ptr {
+		ele = ele.Elem()
 	}
-
-	if resultType.Kind() != reflect.Struct {
-		return errors.New("structs query results item must be struct")
-	}
-
-	arr, err := rowsToStructs(rows, resultType)
+	result := reflect.New(ele).Elem()
+	arr, err := rowsToStructs(rows, result)
 	if nil != err {
 		return err
 	}
 
 	for i := 0; i < len(arr); i++ {
-		if isPtr {
+		if ele.Kind() == reflect.Ptr {
 			slicePtr.Set(reflect.Append(slicePtr, reflect.ValueOf(arr[i])))
-		} else {
+		}else{
 			slicePtr.Set(reflect.Append(slicePtr, reflect.Indirect(reflect.ValueOf(arr[i]))))
 		}
 	}
-
 	return nil
 }
 
@@ -316,11 +299,12 @@ func rowsToSlices(rows *sql.Rows) ([]interface{}, error) {
 	return res, nil
 }
 
-func rowsToStructs(rows *sql.Rows, resultType reflect.Type) ([]interface{}, error) {
+func rowsToStructs(rows *sql.Rows, resVal reflect.Value) ([]interface{}, error) {
 	fieldsMapper := make(map[string]string)
-	fields := resultType.NumField()
+	resType := resVal.Type()
+	fields := resType.NumField()
 	for i := 0; i < fields; i++ {
-		field := resultType.Field(i)
+		field := resType.Field(i)
 		fieldsMapper[field.Name] = field.Name
 		tag := field.Tag.Get("field")
 		if tag != "" {
@@ -347,7 +331,7 @@ func rowsToStructs(rows *sql.Rows, resultType reflect.Type) ([]interface{}, erro
 			return nil, err
 		}
 
-		obj := reflect.New(resultType).Elem()
+		obj := reflect.New(resType).Elem()
 		objPtr := reflect.Indirect(obj)
 		for i := 0; i < len(cols); i++ {
 			colName := cols[i]
@@ -365,9 +349,8 @@ func rowsToStructs(rows *sql.Rows, resultType reflect.Type) ([]interface{}, erro
 						" dataType:" + reflect.TypeOf(data).Name()
 					log.Println(warnInfo)
 				}
-
 				if nil != data {
-					field.Set(reflect.ValueOf(data))
+					_ = valSet(data,field)
 				}
 			}
 		}

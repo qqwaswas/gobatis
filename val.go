@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+
+
 func stringToVal(data interface{}, tp reflect.Type) interface{} {
 	str := data.(string)
 	switch tp.Kind() {
@@ -71,6 +73,121 @@ func stringToVal(data interface{}, tp reflect.Type) interface{} {
 
 	return data
 }
+
+func valSet(val interface{}, field reflect.Value) error{
+	switch field.Kind() {
+	case reflect.Bool:
+		switch val.(type) {
+		case string:
+			b, e := strconv.ParseBool(val.(string))
+			if nil == e {
+				field.SetBool(b)
+			}
+		case int, int8, int16, int32, int64:
+			if dataVal(val).(int64) == 1 {
+				field.SetBool(true)
+			}
+		case uint, uint8,uint16,uint32,uint64: {
+			if dataVal(val).(uint64) == 1 {
+				field.SetBool(true)
+			}
+		}
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if isSameType(reflect.ValueOf(val), field) {
+			field.SetInt(dataVal(val).(int64))
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		if isSameType(reflect.ValueOf(val), field) {
+			field.SetUint(dataVal(val).(uint64))
+		}
+	case reflect.Float32, reflect.Float64:
+		if isSameType(reflect.ValueOf(val), field) {
+			field.SetFloat(dataVal(val).(float64))
+		}
+	case reflect.Complex64,reflect.Complex128:
+		if isSameType(reflect.ValueOf(val), field) {
+			field.SetComplex(dataVal(val).(complex128))
+		}
+	default:
+		if isSameType(reflect.ValueOf(val), field) {
+			field.SetString(val.(string))
+		}
+	}
+	return nil
+}
+
+const (
+	intType = iota
+	uintType
+	floatType
+	complexType
+	otherType
+)
+
+func isSameType(v1 reflect.Value, v2 reflect.Value) bool {
+	i := valType(v1)
+	i2 := valType(v2)
+	if i != otherType && i2 != otherType {
+		return i == i2
+	}
+    return v1.Kind() == v2.Kind()
+}
+
+
+func valType(val reflect.Value ) int {
+	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return intType
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return uintType
+	case reflect.Float32, reflect.Float64:
+		return floatType
+	case reflect.Complex64,reflect.Complex128:
+		return complexType
+	}
+	return otherType
+}
+
+
+func dataVal(data interface{}) interface{}{
+	t := reflect.ValueOf(data)
+
+	switch t.Kind() {
+	case reflect.Int:
+		return int64(data.(int))
+	case reflect.Int8:
+		return int64(data.(int8))
+	case reflect.Int16:
+		return int64(data.(int16))
+	case reflect.Int32:
+		return int64(data.(int32))
+	case reflect.Int64:
+		return data.(int64)
+	case reflect.Uint:
+		return uint64(data.(uint))
+	case reflect.Uint8:
+		return uint64(data.(uint8))
+	case reflect.Uint16:
+		return uint64(data.(uint16))
+	case reflect.Uint32:
+		return uint64(data.(uint32))
+	case reflect.Uint64:
+		return data.(uint64)
+	case reflect.Uintptr:
+		return uint64(data.(uintptr))
+	case reflect.Float32:
+		return float64(data.(float32))
+	case reflect.Float64:
+		return data.(float64)
+	case reflect.Complex64:
+		return complex128(data.(complex64))
+	case reflect.Complex128:
+		return data.(complex128)
+	}
+	return data
+}
+
 
 func bytesToVal(data interface{}, tp reflect.Type) interface{} {
 	str := string(data.([]uint8))
