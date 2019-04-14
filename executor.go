@@ -15,7 +15,7 @@ func (exec *executor) update(ms *mappedStmt, params map[string]interface{}) (las
 		return 0, 0, err
 	}
 
-	if showSql {
+	if debug {
 		log.Println("SQL:", boundSql.sqlStr)
 		log.Println("ParamMappings:", boundSql.paramMappings)
 		log.Println("Params:", paramArr)
@@ -49,7 +49,7 @@ func (exec *executor) query(ms *mappedStmt, params map[string]interface{}, res i
 		return err
 	}
 
-	if showSql {
+	if debug {
 		log.Println("SQL:", boundSql.sqlStr)
 		log.Println("ParamMappings:", boundSql.paramMappings)
 		log.Println("Params:", paramArr)

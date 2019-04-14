@@ -9,14 +9,14 @@ import (
 )
 
 type User struct {
-	Id       int64    `field:"id"`
-	UserName string `field:"user_name"`
-	Age      int8    `field:"age"`
-	Addr     string `field:"addr"`
-	Passwd string `field:"passwd"`
-	IsDisable bool `field:"is_disable"`
-	Money float32 `field:"money"`
-	Total float64 `field:"total"`
+	Id        int64
+	UserName  string
+	Age       int8
+	Addr      string
+	Passwd    string
+	IsDisable bool
+	Money     float32
+	Total     float64
 }
 
 func main() {
@@ -43,16 +43,16 @@ func main() {
 
 	runner, err := batis.Begin()
 
-	//u := User{}
-	//
-	//err = runner.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(&u)
-	//
-	//fmt.Printf("%v, error%v",u,err)
+	u := User{}
 
-	var us  []User
+	err = runner.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(&u)
 
-	runner.Select("userMapper.queryStructs",map[string]interface{}{})(&us)
+	fmt.Printf("%v, error%v\n", u, err)
 
-	fmt.Printf("%v",us)
+	var us []User
+
+	_ = runner.Select("userMapper.queryStructs", map[string]interface{}{})(&us)
+
+	fmt.Printf("%v", us)
 
 }

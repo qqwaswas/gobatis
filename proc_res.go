@@ -90,7 +90,7 @@ func resStructsProc(rows *sql.Rows, res interface{}) error {
 	for i := 0; i < len(arr); i++ {
 		if ele.Kind() == reflect.Ptr {
 			slicePtr.Set(reflect.Append(slicePtr, reflect.ValueOf(arr[i])))
-		}else{
+		} else {
 			slicePtr.Set(reflect.Append(slicePtr, reflect.Indirect(reflect.ValueOf(arr[i]))))
 		}
 	}
@@ -305,7 +305,9 @@ func rowsToStructs(rows *sql.Rows, resVal reflect.Value) ([]interface{}, error) 
 	fields := resType.NumField()
 	for i := 0; i < fields; i++ {
 		field := resType.Field(i)
-		fieldsMapper[field.Name] = field.Name
+		fieldsMapper[toCamel(field.Name)] = field.Name
+		fieldsMapper[toSnake(field.Name)] = field.Name
+		fieldsMapper[toLowerCamel(field.Name)] = field.Name
 		tag := field.Tag.Get("field")
 		if tag != "" {
 			fieldsMapper[tag] = field.Name
@@ -341,7 +343,6 @@ func rowsToStructs(rows *sql.Rows, resVal reflect.Value) ([]interface{}, error) 
 			if field.CanSet() && vals[i] != nil {
 				//获取字段类型并设值
 				data := dataToFieldVal(vals[i], field.Type(), fieldName)
-
 				// 数据库返回类型与字段类型不符合的情况下通知用户
 				if reflect.TypeOf(data).Name() != field.Type().Name() {
 					warnInfo := "[WARN] fieldType != dataType, filedName:" + fieldName +
@@ -350,7 +351,7 @@ func rowsToStructs(rows *sql.Rows, resVal reflect.Value) ([]interface{}, error) 
 					log.Println(warnInfo)
 				}
 				if nil != data {
-					_ = valSet(data,field)
+					_ = valSet(data, field)
 				}
 			}
 		}
