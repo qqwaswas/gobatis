@@ -28,51 +28,92 @@ value: 则数据库查询结果为单个数值
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE mapper PUBLIC "gobatis"
-        "https://raw.githubusercontent.com/wenj91/gobatis/master/gobatis.dtd">
+        "https://raw.githubusercontent.com/youkale/gobatis/master/gobatis.dtd">
 <mapper namespace="userMapper">
-    <select id="findMapById" resultType="map">
-        SELECT id, name FROM user where id=#{id} order by id
+    <select id="findMapById" resultType="struct">
+        SELECT * FROM user where id=#{id} order by id
     </select>
     <select id="findMapByValue" resultType="map">
-            SELECT id, name FROM user where id=#{0} order by id
+        SELECT * FROM user where id=1 order by id
     </select>
+    <select id="findMapByValues" resultType="maps">
+        SELECT * FROM user  order by id
+    </select>
+    <select id="findSliceByValue" resultType="slice">
+        SELECT id FROM user where id=1  order  by id
+    </select>
+    <select id="findSlicesByValue" resultType="slices">
+        SELECT * FROM user order by id
+    </select>
+
+    <select id="findArrayByValue" resultType="array">
+        SELECT * FROM user where id=1  order by id
+    </select>
+
+    <select id="findValueByValue" resultType="value">
+        SELECT id FROM user where id=1 order by id
+    </select>
+
     <select id="findStructByStruct" resultType="struct">
-        SELECT id, name, crtTm FROM user where id=#{Id} order by id
+        SELECT id, user_name, password FROM user where id=#{Id} order by id
+    </select>
+    <select id="findById" resultType="struct">
+        SELECT * FROM user where id=#{id} order by id
     </select>
     <select id="queryStructs" resultType="structs">
-        SELECT id, name, crtTm FROM user order by id
+        SELECT * FROM user order by id
     </select>
-    <select id="queryStructsByOrder" resultType="structs">
-        SELECT id, name, crtTm FROM user order by ${id} desc
+    <select id="queryStructsByCond" resultType="structs">
+        SELECT id, user_name, password, pwd, email FROM user
+        <where>
+            <if test="Name != nil and Name != ''">and user_name = #{Name}</if>
+        </where>
+        order by id
     </select>
-    <insert id="insertStruct">
-        insert into user (name, email, crtTm)
+    <select id="queryStructsByCond2" resultType="structs">
+        SELECT id, name, crtTm, pwd, email FROM user
+        <trim prefixOverrides="and" prefix="where" suffixOverrides="," suffix="and 1=1">
+
+            <if test="Name != nil and Name != ''">and user_name = #{Name}</if>
+        </trim>
+        order by id
+    </select>
+    <select id="queryStructsByCond3" resultType="structs">
+        SELECT id, name, crtTm, pwd, email FROM user
+        <trim prefixOverrides="and" prefix="where" suffixOverrides="," suffix="and 1=1">
+            <choose>
+                <when test="Age % 3 == 0">
+                    and age = #{Age}
+                </when>
+                <when test="Age % 2 == 0 ">
+                    and age = #{Age}
+                </when>
+                <otherwise>
+                    and name = 'otherwise'
+                </otherwise>
+            </choose>
+            <if test="Name != nil and Name != ''">and name = #{Name}</if>
+            <if test="Password % 2 == 0 ">and pwd = #{Password} </if>
+
+        </trim>
+        order by id
+    </select>
+
+    <update id="updateByCond">
+        update user
+        <set>
+            <if test="Name != nil and Name2 != ''">name = #{Name},</if>
+            <if test="Password != nil and Password != ''">pwd = #{Password},</if>
+        </set>
+        where id = #{Id}
+    </update>
+    <insert id="saveUser">
+        insert into user (user_name, age, addr)
         values (#{Name}, #{Email}, #{CrtTm})
     </insert>
     <delete id="deleteById">
         delete from user where id=#{id}
     </delete>
-    <select id="queryStructsByCond" resultType="structs">
-         SELECT id, name, crtTm, pwd, email FROM user
-         <where>
-             <if test="Name != nil and Name != ''">and name = #{Name}</if>
-         </where>
-         order by id
-    </select>
-     <select id="queryStructsByCond2" resultType="structs">
-         SELECT id, name, crtTm, pwd, email FROM user
-         <trim prefixOverrides="and" prefix="where" suffixOverrides="," suffix="and 1=1">
-              <if test="Name != nil and Name != ''">and name = #{Name}</if>
-         </trim>
-         order by id
-    </select>
-    <update id="updateByCond">
-        update user
-        <set>
-            <if test="Name != nil and Name2 != ''">name = #{Name},</if>
-        </set>
-        where id = #{Id}
-    </update>
 </mapper>
 ```
 
@@ -82,47 +123,98 @@ example.go
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql" // 引入驱动
-	"github.com/wenj91/gobatis"        // 引入gobatis
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/youkale/gobatis"
 )
 
-// 实体结构示例， tag：field为数据库对应字段名称
 type User struct {
-	Id    gobatis.NullInt64  `field:"id"`
-	Name  gobatis.NullString `field:"name"`
-	Email gobatis.NullString `field:"email"`
-	CrtTm gobatis.NullTime   `field:"crtTm"`
+	Id        int64
+	UserName  string
+	Age       int8
+	Addr      string
+	Passwd    string
+	IsDisable bool
+	Money     float32
+	Total     float64
 }
 
 func main() {
 	db, err := sql.Open("mysql",
-    		"root:toor@tcp(127.0.0.1:3306)/gobatis")
-    	if nil != err {
-    		panic(err)
-    	}
-    
-    	err = db.Ping()
-    	if nil != err {
-    		panic(err)
-    	}
-    
-    	config := &gobatis.Config{
-    		Db:          db,
-    		MapperPaths: []string{"./examples/mapper"},
-    	}
-    
-    	batis, err := gobatis.NewGoBatis(context.Background(), config)
-    	if nil != err {
-    		panic(err)
-    	}
-    
-    	runner, err := batis.Begin()
-    
-    	u := User{}
-    
-    	err = runner.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(&u)
-    
-    	fmt.Printf("%v, error%v",u,err)
+		"root:toor@tcp(127.0.0.1:3306)/gobatis")
+
+	if nil != err {
+		panic(err)
+	}
+
+	err = db.Ping()
+	if nil != err {
+		panic(err)
+	}
+
+	config := &gobatis.Config{
+		Db:          db,
+		MapperPaths: []string{"./examples/mapper"},
+		Debug:true,
+		ColumnStyle:[]int{gobatis.StyleSnake},
+	}
+
+	batis, err := gobatis.NewGoBatis(context.Background(), config)
+	if nil != err {
+		panic(err)
+	}
+
+
+	u := User{}
+
+	err = batis.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(&u)
+
+	fmt.Printf("%v, error%v\n", u, err)
+
+	var us []User
+
+	_ = batis.Select("userMapper.queryStructs", map[string]interface{}{})(&us)
+
+	fmt.Printf("%v\n", us)
+
+	m := make(map[string]interface{})
+
+	err = batis.Select("userMapper.findMapByValue",map[string]interface{}{})(&m)
+
+	fmt.Printf("%v, err %v", m,err)
+
+	var ms []map[string]interface{}
+
+	err = batis.Select("userMapper.findMapByValues",map[string]interface{}{})(&ms)
+
+	fmt.Printf("%v",ms)
+
+	var ss []interface{}
+
+	err = batis.Select("userMapper.findSliceByValue",map[string]interface{}{})(&ss)
+
+	fmt.Printf("%v,%v",ss,err)
+
+	var sss [][]interface{}
+
+	err = batis.Select("userMapper.findSlicesByValue",map[string]interface{}{})(&sss)
+
+	fmt.Printf("%v,%v",sss,err)
+
+	var ar []interface{}
+	err = batis.Select("userMapper.findArrayByValue",map[string]interface{}{})(&ar)
+	fmt.Printf("%v,%v",ar,err)
+
+	var ars []interface{}
+	err = batis.Select("userMapper.findArraysByValue",map[string]interface{}{})(&ars)
+	fmt.Printf("%v,%v",ars,err)
+
+	var v int
+	err = batis.Select("userMapper.findValueByValue",map[string]interface{}{})(&v)
+	fmt.Printf("%v,%v",v,err)
+
 }
+
 ```
