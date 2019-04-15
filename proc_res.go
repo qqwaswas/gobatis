@@ -305,9 +305,15 @@ func rowsToStructs(rows *sql.Rows, resVal reflect.Value) ([]interface{}, error) 
 	fields := resType.NumField()
 	for i := 0; i < fields; i++ {
 		field := resType.Field(i)
-		fieldsMapper[toCamel(field.Name)] = field.Name
-		fieldsMapper[toSnake(field.Name)] = field.Name
-		fieldsMapper[toLowerCamel(field.Name)] = field.Name
+		if len(columnStyle) > 0 {
+			for _,f := range columnStyle {
+				fieldsMapper[f(field.Name)] = field.Name
+			}
+		}else{
+			fieldsMapper[toSnake(field.Name)] = field.Name
+			fieldsMapper[toLowerCamel(field.Name)] = field.Name
+			fieldsMapper[toCamel(field.Name)] = field.Name
+		}
 		tag := field.Tag.Get("field")
 		if tag != "" {
 			fieldsMapper[tag] = field.Name

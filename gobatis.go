@@ -50,12 +50,25 @@ const (
 	dbTypePostgres DbType = "postgres"
 )
 
+const(
+	StyleCamel = iota
+	StyleLowerCamel
+	StyleSnake
+)
+
 var debug = true
+var columnStyle []func(string) string
+
 
 type Config struct {
+	//database
 	Db          *sql.DB
+	//mapper xml file path
 	MapperPaths []string
-	ColumnStyle int
+	//database column style
+	//mapping from struct field
+	ColumnStyle []int
+	//enable debug
 	Debug       bool
 }
 
@@ -63,18 +76,18 @@ func NewGoBatis(ctx context.Context, conf *Config) (*Gobatis, error) {
 	if nil == conf.Db {
 		return nil, ErrorDBNil
 	}
-
 	err := conf.Db.Ping()
 	if nil != err {
 		return nil, ErrorDbConn
 	}
-
 	debug = conf.Debug
 
 	mapper, err := loadingMapper(conf.MapperPaths...)
 	if nil != err {
 		return nil, err
 	}
+
+	initColumnStyle(conf.ColumnStyle)
 
 	gb := &Gobatis{
 		mappers: mapper,
@@ -85,6 +98,19 @@ func NewGoBatis(ctx context.Context, conf *Config) (*Gobatis, error) {
 	}
 	gb.ctxStd, gb.cancel = context.WithCancel(ctx)
 	return gb, nil
+}
+
+func initColumnStyle(col []int){
+	for _,s := range col {
+		switch s {
+		case StyleCamel:
+			columnStyle = append(columnStyle,toCamel)
+		case StyleLowerCamel:
+			columnStyle = append(columnStyle,toLowerCamel)
+		case StyleSnake:
+			columnStyle = append(columnStyle,toSnake)
+		}
+	}
 }
 
 type runner struct {
