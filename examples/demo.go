@@ -91,7 +91,37 @@ func main() {
 
 	var v int
 	err = batis.Select("userMapper.findValueByValue",map[string]interface{}{})(&v)
-	fmt.Printf("%v,%v",v,err)
+	fmt.Printf("%v,%v\n",v,err)
+
+
+	sean := User{}
+	sean.Addr = "火星"
+	sean.Age = 22
+	sean.IsDisable = true
+	sean.Money= 10000.00
+	sean.Passwd = "password"
+	sean.Total = 1.22
+	sean.UserName = "sean"
+
+	runner, err := batis.Begin()
+	i, i2, err := runner.Insert("userMapper.save", &sean)
+	fmt.Printf("%v/%v/%v\n",i,i2,err)
+	err = runner.Commit()
+
+	begin, _ := batis.Begin()
+
+	sean.Id = i
+	sean.UserName = "sdfsdfs"
+
+	update, _ := begin.Update("userMapper.updateById", &sean)
+
+	err = begin.Commit()
+
+	fmt.Printf("%v/%v",update,err)
+
+	i3, err := batis.Delete("userMapper.deleteById", &sean)
+
+	fmt.Printf("%v//%v",i3,err)
 
 }
 

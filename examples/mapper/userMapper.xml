@@ -22,6 +22,12 @@
         SELECT * FROM user where id=1  order by id
     </select>
 
+
+    <select id="findArraysByValue" resultType="array">
+        SELECT * FROM user   order by id
+    </select>
+
+
     <select id="findValueByValue" resultType="value">
         SELECT id FROM user where id=1 order by id
     </select>
@@ -35,6 +41,19 @@
     <select id="queryStructs" resultType="structs">
         SELECT * FROM user order by id
     </select>
+
+    <insert id="save">
+        INSERT INTO gobatis.user (user_name, age, addr, passwd, is_disable, money, total) VALUES (#{UserName}, #{Age}, #{Addr}, #{Passwd}, #{IsDisable}, #{Money}, #{Total});
+    </insert>
+
+    <update id="updateById">
+        update user set user_name = #{UserName} where id = #{Id}
+    </update>
+
+    <delete id="deleteById">
+        delete from user where id = #{Id}
+    </delete>
+
     <select id="queryStructsByCond" resultType="structs">
         SELECT id, user_name, password, pwd, email FROM user
         <where>
@@ -83,7 +102,5 @@
         insert into user (user_name, age, addr)
         values (#{Name}, #{Email}, #{CrtTm})
     </insert>
-    <delete id="deleteById">
-        delete from user where id=#{id}
-    </delete>
+
 </mapper>
