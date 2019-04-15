@@ -134,10 +134,10 @@ type User struct {
 	Id        int64
 	UserName  string
 	Age       int8
-	Addr      string
+	Addr      gobatis.NullString
 	Passwd    string
 	IsDisable bool
-	Money     float32
+	Money     gobatis.NullFloat64
 	Total     float64
 }
 
@@ -213,36 +213,40 @@ func main() {
 
 	var v int
 	err = batis.Select("userMapper.findValueByValue",map[string]interface{}{})(&v)
-	fmt.Printf("%v,%v",v,err)
+	fmt.Printf("%v,%v\n",v,err)
 
-    sean := User{}
-    sean.Addr = "火星"
-    sean.Age = 22
-    sean.IsDisable = true
-    sean.Money= 10000.00
-    sean.Passwd = "password"
-    sean.Total = 1.22
-    sean.UserName = "sean"
 
-    runner, err := batis.Begin()
-    i, i2, err := runner.Insert("userMapper.save", &sean)
-    fmt.Printf("%v/%v/%v\n",i,i2,err)
-    err = runner.Commit()
+	sean := User{}
+	sean.Addr = gobatis.NullString{String:"火星"}
+	sean.Age = 22
+	sean.IsDisable = true
+	sean.Money= gobatis.NullFloat64{
+		Float64:10000.00,
+	}
+	sean.Passwd = "password"
+	sean.Total = 1.22
+	sean.UserName = "sean"
 
-    begin, _ := batis.Begin()
+	runner, err := batis.Begin()
+	i, i2, err := runner.Insert("userMapper.save", &sean)
+	fmt.Printf("%v/%v/%v\n",i,i2,err)
+	err = runner.Commit()
 
-    sean.Id = i
-    sean.UserName = "sdfsdfs"
+	begin, _ := batis.Begin()
 
-    update, _ := begin.Update("userMapper.updateById", &sean)
+	sean.Id = i
+	sean.UserName = "sdfsdfs"
 
-    err = begin.Commit()
+	update, _ := begin.Update("userMapper.updateById", &sean)
 
-    fmt.Printf("%v/%v",update,err)
+	err = begin.Commit()
 
-    i3, err := batis.Delete("userMapper.deleteById", &sean)
+	fmt.Printf("%v/%v",update,err)
 
-    fmt.Printf("%v//%v",i3,err)
+	i3, err := batis.Delete("userMapper.deleteById", &sean)
+
+	fmt.Printf("%v//%v",i3,err)
 
 }
+
 ```

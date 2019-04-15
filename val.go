@@ -113,8 +113,9 @@ func valSet(val interface{}, field reflect.Value) error{
 			field.SetComplex(dataVal(val).(complex128))
 		}
 	default:
-		if isSameType(reflect.ValueOf(val), field) {
-			field.SetString(val.(string))
+		v := reflect.ValueOf(val)
+		if isSameType(v, field) {
+			field.Set(v)
 		}
 	}
 	return nil

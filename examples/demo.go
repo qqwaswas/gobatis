@@ -12,10 +12,10 @@ type User struct {
 	Id        int64
 	UserName  string
 	Age       int8
-	Addr      string
+	Addr      gobatis.NullString
 	Passwd    string
 	IsDisable bool
-	Money     float32
+	Money     gobatis.NullFloat64
 	Total     float64
 }
 
@@ -95,10 +95,12 @@ func main() {
 
 
 	sean := User{}
-	sean.Addr = "火星"
+	sean.Addr = gobatis.NullString{String:"火星"}
 	sean.Age = 22
 	sean.IsDisable = true
-	sean.Money= 10000.00
+	sean.Money= gobatis.NullFloat64{
+		Float64:10000.00,
+	}
 	sean.Passwd = "password"
 	sean.Total = 1.22
 	sean.UserName = "sean"
