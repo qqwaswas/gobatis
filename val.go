@@ -78,6 +78,8 @@ func valSet(val interface{}, field reflect.Value) error{
 	switch field.Kind() {
 	case reflect.Bool:
 		switch val.(type) {
+		case bool:
+			field.SetBool(val.(bool))
 		case string:
 			b, e := strconv.ParseBool(val.(string))
 			if nil == e {
@@ -91,6 +93,7 @@ func valSet(val interface{}, field reflect.Value) error{
 			if dataVal(val).(uint64) == 1 {
 				field.SetBool(true)
 			}
+
 		}
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

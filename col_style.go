@@ -124,6 +124,3 @@ func toLowerCamel(s string) string {
 	}
 	return toCamelInitCase(s, false)
 }
-
-
-var columnStyles = []func(string)string{toSnake,toCamel,toLowerCamel}

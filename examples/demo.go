@@ -41,17 +41,16 @@ func main() {
 		panic(err)
 	}
 
-	runner, err := batis.Begin()
 
-	u := User{}
+	//u := User{}
 
-	err = runner.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(&u)
+	//err = batis.Select("userMapper.findMapById", map[string]interface{}{"id": 1})(&u)
 
-	fmt.Printf("%v, error%v\n", u, err)
+	//fmt.Printf("%v, error%v\n", u, err)
 
 	var us []User
 
-	_ = runner.Select("userMapper.queryStructs", map[string]interface{}{})(&us)
+	_ = batis.Select("userMapper.queryStructs", map[string]interface{}{})(&us)
 
 	fmt.Printf("%v", us)
 

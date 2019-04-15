@@ -28,7 +28,7 @@ type GoBatis interface {
 }
 
 // reference from https://github.com/yinshuwei/osm/blob/master/osm.go start
-type Executor interface {
+type sqlExecutor interface {
 	Prepare(query string) (*sql.Stmt, error)
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)
@@ -40,6 +40,7 @@ var (
 	ErrorDbConn      = errors.New("db can not conn")
 	ErrorEmptyMapper = errors.New("mapper xml is nil or empty")
 	ErrStruct        = errors.New("struct query result must be ptr")
+	ErrNoTransaction = errors.New("sql transaction is nil")
 )
 
 type DbType string
@@ -76,18 +77,20 @@ func NewGoBatis(ctx context.Context, conf *Config) (*Gobatis, error) {
 	}
 
 	gb := &Gobatis{
-		db:      conf.Db,
 		mappers: mapper,
+		runner:&runner{
+			executor:conf.Db,
+			mappers:mapper,
+		},
 	}
 	gb.ctxStd, gb.cancel = context.WithCancel(ctx)
 	return gb, nil
 }
 
-type Runner struct {
-	executor Executor
+type runner struct {
+	executor sqlExecutor
 	dbType   DbType
 	mappers  *mapper
-	tx       *sql.Tx
 }
 
 // Gobatis
@@ -95,14 +98,14 @@ type Gobatis struct {
 	ctxStd  context.Context
 	cancel  context.CancelFunc
 	mappers *mapper
-	db      *sql.DB
+	*runner
 }
 
 // Begin Tx
 //
 // ps：
 //  Tx, err := this.Begin()
-func (g *Gobatis) Begin() (*Runner, error) {
+func (g *Gobatis) Begin() (*runner, error) {
 	return g.BeginTx(g.ctxStd, nil)
 }
 
@@ -110,14 +113,15 @@ func (g *Gobatis) Begin() (*Runner, error) {
 //
 // ps：
 //  Tx, err := this.BeginTx(ctx, ops)
-func (g *Gobatis) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Runner, error) {
-	tx, err := g.db.BeginTx(ctx, opts)
+func (g *Gobatis) BeginTx(ctx context.Context, opts *sql.TxOptions) (*runner, error) {
+	db := g.runner.executor.(*sql.DB)
+	tx, err := db.BeginTx(ctx, opts)
 	if nil != err {
 		return nil, err
 	}
-	return &Runner{
-		mappers: g.mappers,
-		tx:      tx,
+	return &runner{
+		executor: tx,
+		mappers:  g.mappers,
 	}, nil
 }
 
@@ -126,31 +130,43 @@ func (g *Gobatis) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Runner, er
 // ps：
 //  err := this.Close()
 func (g *Gobatis) Close() error {
+	db := g.runner.executor.(*sql.DB)
 	g.cancel()
-	return g.db.Close()
+	return db.Close()
 }
 
 // Commit Tx
 //
 // ps：
 //  err := Tx.Commit()
-func (r *Runner) Commit() error {
-	if nil == r.tx {
+func (r *runner) Commit() error {
+	if nil == r.executor {
 		return errors.New("tx no running")
 	}
-	return r.tx.Commit()
+	tx, ok := r.executor.(*sql.Tx)
+	if ok {
+		return tx.Commit()
+	}
+	return ErrNoTransaction
 }
 
 // Rollback Tx
 //
 // ps：
 //  err := Tx.Rollback()
-func (r *Runner) Rollback() error {
-	return r.tx.Rollback()
+func (r *runner) Rollback() error {
+	if nil == r.executor {
+		return errors.New("tx no running")
+	}
+	tx, ok := r.executor.(*sql.Tx)
+	if ok {
+		return tx.Rollback()
+	}
+	return ErrNoTransaction
 }
 
 // reference from https://github.com/yinshuwei/osm/blob/master/osm.go end
-func (r *Runner) Select(stmt string, param interface{}) func(res interface{}) error {
+func (r *runner) Select(stmt string, param interface{}) func(res interface{}) error {
 	ms := r.mappers.getMappedStmt(stmt)
 	if nil == ms {
 		return func(res interface{}) error {
@@ -167,8 +183,8 @@ func (r *Runner) Select(stmt string, param interface{}) func(res interface{}) er
 	}
 }
 
-// insert(Executor string, param interface{})
-func (r *Runner) Insert(stmt string, param interface{}) (int64, int64, error) {
+// insert(executor string, param interface{})
+func (r *runner) Insert(stmt string, param interface{}) (int64, int64, error) {
 	ms := r.mappers.getMappedStmt(stmt)
 	if nil == ms {
 		return 0, 0, errors.New("Mapped statement not found:" + stmt)
@@ -187,8 +203,8 @@ func (r *Runner) Insert(stmt string, param interface{}) (int64, int64, error) {
 	return lastInsertId, affected, nil
 }
 
-// update(Executor string, param interface{})
-func (r *Runner) Update(stmt string, param interface{}) (int64, error) {
+// update(executor string, param interface{})
+func (r *runner) Update(stmt string, param interface{}) (int64, error) {
 	ms := r.mappers.getMappedStmt(stmt)
 	if nil == ms {
 		return 0, errors.New("Mapped statement not found:" + stmt)
@@ -206,7 +222,7 @@ func (r *Runner) Update(stmt string, param interface{}) (int64, error) {
 	return affected, nil
 }
 
-// delete(Executor string, param interface{})
-func (r *Runner) Delete(stmt string, param interface{}) (int64, error) {
+// delete(executor string, param interface{})
+func (r *runner) Delete(stmt string, param interface{}) (int64, error) {
 	return r.Update(stmt, param)
 }

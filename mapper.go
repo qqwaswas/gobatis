@@ -61,7 +61,7 @@ func (m *mapper) getMappedStmt(id string) *mappedStmt {
 
 	rootNode, ok := m.mappedStmts[id]
 	if !ok {
-		log.Fatalln("can not find id:", id, "mapped Executor")
+		log.Fatalln("can not find id:", id, "mapped executor")
 	}
 
 	resultType := ""

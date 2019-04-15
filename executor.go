@@ -6,7 +6,7 @@ import (
 )
 
 type executor struct {
-	*Runner
+	*runner
 }
 
 func (exec *executor) update(ms *mappedStmt, params map[string]interface{}) (lastInsertId int64, affected int64, err error) {
@@ -21,7 +21,7 @@ func (exec *executor) update(ms *mappedStmt, params map[string]interface{}) (las
 		log.Println("Params:", paramArr)
 	}
 
-	stmt, err := exec.tx.Prepare(boundSql.sqlStr)
+	stmt, err := exec.executor.Prepare(boundSql.sqlStr)
 	if nil != err {
 		return 0, 0, err
 	}
@@ -55,7 +55,7 @@ func (exec *executor) query(ms *mappedStmt, params map[string]interface{}, res i
 		log.Println("Params:", paramArr)
 	}
 
-	rows, err := exec.tx.Query(boundSql.sqlStr, paramArr...)
+	rows, err := exec.executor.Query(boundSql.sqlStr, paramArr...)
 	if nil != err {
 		return err
 	}
