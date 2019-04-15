@@ -32,7 +32,20 @@ func resStructProc(rows *sql.Rows, res interface{}) error {
 	if resVal.Kind() != reflect.Struct {
 		return ErrStruct
 	}
-	arr, err := rowsToStructs(rows, resVal)
+
+	if resVal.Kind() == reflect.Invalid || !resVal.CanAddr() || !resVal.CanSet() {
+		tips := `
+res := UserXXX{}
+queryParams := make(map[string]interface{})
+queryParams["id"] = id
+batis.Select("selectXXXById", queryParams)(&res)
+Tips: "(&res)" --> don't forget "&"
+`
+		return errors.New("Struct query result must be a struct ptr, " +
+			"and params res is the address of ptr, e.g. " + tips)
+	}
+
+	arr, err := rowsToStructs(rows, resVal.Type())
 	if nil != err {
 		return err
 	}
@@ -81,8 +94,8 @@ func resStructsProc(rows *sql.Rows, res interface{}) error {
 	for ele.Kind() == reflect.Ptr {
 		ele = ele.Elem()
 	}
-	result := reflect.New(ele).Elem()
-	arr, err := rowsToStructs(rows, result)
+	//result := reflect.New(ele).Elem()
+	arr, err := rowsToStructs(rows, ele)
 	if nil != err {
 		return err
 	}
@@ -139,6 +152,11 @@ func resSlicesProc(rows *sql.Rows, res interface{}) error {
 		return errors.New("slices query result must be slice ptr")
 	}
 
+	k := value.Type().Elem().Kind()
+	if  k != reflect.Slice && k != reflect.Array && k != reflect.Interface{
+		return errors.New("slices query result must be [][]interface ptr")
+	}
+
 	arr, err := rowsToSlices(rows)
 	if nil != err {
 		return err
@@ -162,6 +180,10 @@ func resSliceProc(rows *sql.Rows, res interface{}) error {
 		return errors.New("slice query result must be slice ptr")
 	}
 
+	if value.Type().Elem().Kind() != reflect.Interface {
+		return errors.New("slice query result must be interface{}")
+	}
+
 	arr, err := rowsToSlices(rows)
 	if nil != err {
 		return err
@@ -181,12 +203,27 @@ func resSliceProc(rows *sql.Rows, res interface{}) error {
 
 func resMapProc(rows *sql.Rows, res interface{}) error {
 	resBean := reflect.ValueOf(res)
-	if resBean.Kind() == reflect.Ptr {
-		return errors.New("map query result can not be ptr")
+	for resBean.Kind() == reflect.Ptr {
+		if resBean.IsNil() {
+			return ErrStruct
+		}
+		resBean = resBean.Elem()
 	}
 
 	if resBean.Kind() != reflect.Map {
 		return errors.New("map query result must be map")
+	}
+
+	if  !resBean.CanAddr() && !resBean.CanSet() || resBean.IsNil() {
+		tips := `
+var res = make(map[string]interface{})
+queryParams := make(map[string]interface{})
+queryParams["id"] = id
+batis.Select("selectXXXById", queryParams)(&res)
+Tips: "(&res)" --> don't forget "&"
+`
+		return errors.New("map query result must be a map ptr, " +
+			"and params res is the address of ptr, e.g. " + tips)
 	}
 
 	arr, err := rowsToMaps(rows)
@@ -199,10 +236,9 @@ func resMapProc(rows *sql.Rows, res interface{}) error {
 	}
 
 	if len(arr) > 0 {
-		resMap := res.(map[string]interface{})
-		tempResMap := arr[0].(map[string]interface{})
-		for k, v := range tempResMap {
-			resMap[k] = v
+		r := reflect.ValueOf(arr[0])
+		for _,k := range r.MapKeys() {
+			resBean.SetMapIndex(k,r.MapIndex(k))
 		}
 	}
 
@@ -299,9 +335,8 @@ func rowsToSlices(rows *sql.Rows) ([]interface{}, error) {
 	return res, nil
 }
 
-func rowsToStructs(rows *sql.Rows, resVal reflect.Value) ([]interface{}, error) {
+func rowsToStructs(rows *sql.Rows, resType reflect.Type) ([]interface{}, error) {
 	fieldsMapper := make(map[string]string)
-	resType := resVal.Type()
 	fields := resType.NumField()
 	for i := 0; i < fields; i++ {
 		field := resType.Field(i)

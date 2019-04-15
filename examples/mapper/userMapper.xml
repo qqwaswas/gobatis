@@ -6,13 +6,31 @@
         SELECT * FROM user where id=#{id} order by id
     </select>
     <select id="findMapByValue" resultType="map">
-        SELECT id, user_name FROM user where id=1 order by id
+        SELECT * FROM user where id=1 order by id
     </select>
+    <select id="findMapByValues" resultType="maps">
+        SELECT * FROM user  order by id
+    </select>
+    <select id="findSliceByValue" resultType="slice">
+        SELECT id FROM user where id=1  order  by id
+    </select>
+    <select id="findSlicesByValue" resultType="slices">
+        SELECT * FROM user order by id
+    </select>
+
+    <select id="findArrayByValue" resultType="array">
+        SELECT * FROM user where id=1  order by id
+    </select>
+
+    <select id="findValueByValue" resultType="value">
+        SELECT id FROM user where id=1 order by id
+    </select>
+
     <select id="findStructByStruct" resultType="struct">
         SELECT id, user_name, password FROM user where id=#{Id} order by id
     </select>
     <select id="findById" resultType="struct">
-        SELECT id, user_name FROM user where id=#{id} order by id
+        SELECT * FROM user where id=#{id} order by id
     </select>
     <select id="queryStructs" resultType="structs">
         SELECT * FROM user order by id
